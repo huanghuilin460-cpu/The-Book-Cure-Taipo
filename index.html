@@ -1,1 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>解憂舊書店 The Book Cure</title>
+    <!-- 引入 Tailwind CSS 快速排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 SheetJS 用於直接解析 Excel 檔案 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* 復古書店主題色調：淺色與深色模式變數 */
+        :root {
+            --bg-color: #fdfbf7;
+            --text-color: #3c3530;
+            --header-bg: #e8ddcb;
+            --card-bg: #ffffff;
+            --btn-bg: #8c6b5d;
+            --btn-hover: #70554a;
+            --border-color: #d1c7b8;
+        }
+        .dark-mode {
+            --bg-color: #2c2621;
+            --text-color: #e0d5c1;
+            --header-bg: #3a332d;
+            --card-bg: #3d352e;
+            --btn-bg: #b59a8c;
+            --btn-hover: #9c8477;
+            --border-color: #4a423b;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            font-family: "PingFang HK", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+        }
+        .header-custom { background-color: var(--header-bg); }
+        .card-custom { 
+            background-color: var(--card-bg); 
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        .btn-custom { background-color: var(--btn-bg); color: #fff; }
+        .btn-custom:hover { background-color: var(--btn-hover); }
+        
+        /* 文字大小切換 */
+        .text-normal { font-size: 16px; }
+        .text-large { font-size: 20px; }
+    </style>
+</head>
+<body class="text-normal min-h-screen flex flex-col">
 
+    <!-- 頂部導航欄 -->
+    <header class="header-custom p-4 shadow-sm flex flex-wrap justify-between items-center transition-colors duration-300">
+        <div class="flex items-center space-x-3 mb-3 sm:mb-0">
+            <h1 class="text-2xl font-bold tracking-wider" id="site-title">解憂舊書店</h1>
+            <span class="text-sm opacity-80 border-l border-current pl-3">The Book Cure</span>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+            <!-- 深淺色切換 -->
+            <button onclick="toggleTheme()" class="px-3 py-1.5 bg-black/10 rounded hover:bg-black/20 transition text-sm font-medium" id="btn-theme">切換深色</button>
+            <!-- 文字大小切換 -->
+            <button onclick="toggleFontSize()" class="px-3 py-1.5 bg-black/10 rounded hover:bg-black/20 transition text-sm font-medium" id="btn-font">放大文字</button>
+            <!-- 語言切換 -->
+            <select onchange="changeLanguage(this.value)" class="px-2 py-1.5 bg-transparent border border-current rounded text-sm outline-none cursor-pointer">
+                <option value="zh-tw" class="text-black">繁體中文</option>
+                <option value="zh-cn" class="text-black">简体中文</option>
+                <option value="en" class="text-black">English</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow container mx-auto px-4 py-10 max-w-3xl flex flex-col justify-center">
+        <div class="card-custom rounded-xl p-8 mb-8 text-center transition-colors duration-300">
+            <h2 class="text-2xl font-semibold mb-6" id="prompt-title">告訴我你的煩惱，讓我為你推薦一本書</h2>
+            <textarea id="user-input" class="w-full p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-700/50 bg-transparent text-inherit resize-none" style="border-color: var(--border-color);" rows="4" placeholder="請在此輸入..."></textarea>
+            <button onclick="recommendBook()" class="btn-custom mt-6 px-8 py-3 rounded-full font-medium transition w-full sm:w-auto shadow-md" id="btn-recommend">尋找解藥</button>
+        </div>
+
+        <!-- 讀取狀態 -->
+        <div id="loading" class="text-center hidden py-8">
+            <p class="animate-pulse font-semibold" style="color: var(--btn-bg);" id="loading-text">正在為您翻閱書單，尋找合適的解藥...</p>
+        </div>
+
+        <!-- 結果顯示區 -->
+        <div id="result-section" class="hidden transform transition-all duration-500">
+            <div class="card-custom rounded-xl p-8 border-l-4" style="border-left-color: var(--btn-bg);">
+                <h3 class="text-lg font-bold mb-3 opacity-80" id="result-title">為您推薦的解藥：</h3>
+                <div id="book-title" class="text-2xl sm:text-3xl font-bold mb-3 leading-snug"></div>
+                <a id="book-link" href="#" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline mb-6 inline-block font-medium">前往查看書本詳情 →</a>
+                
+                <div class="mt-2 p-6 rounded-lg italic relative" style="background-color: var(--header-bg);">
+                    <span class="absolute top-2 left-3 text-4xl opacity-30 font-serif">"</span>
+                    <p id="book-quote" class="px-6 py-2 text-center leading-relaxed"></p>
+                    <span class="absolute bottom-[-10px] right-3 text-4xl opacity-30 font-serif">"</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="header-custom p-8 text-center mt-auto transition-colors duration-300">
+        <div class="max-w-2xl mx-auto flex flex-col items-center space-y-3 opacity-90">
+            <h2 class="font-bold text-xl tracking-wide" id="footer-title">解憂舊書店 The Book Cure</h2>
+            <p class="flex items-center gap-2 text-sm sm:text-base">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span id="footer-address">寶湖道街市地下F21, 新界, 大埔區, 香港</span>
+            </p>
+            <p class="flex items-center gap-2 text-sm sm:text-base">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span id="footer-hours">營業時間：星期一至日 11:30～20:00</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // ----------------- 應用狀態 -----------------
+        let books = [];
+        let isDarkMode = false;
+        let isLargeText = false;
+        let currentLang = 'zh-tw';
+
+        // ----------------- 多國語言字典 -----------------
+        const i18n = {
+            'zh-tw': {
+                'site-title': '解憂舊書店',
+                'btn-theme': '切換深色',
+                'btn-theme-light': '切換淺色',
+                'btn-font': '放大文字',
+                'btn-font-normal': '預設文字',
+                'prompt-title': '告訴我你的煩惱，讓我為你推薦一本書',
+                'placeholder': '請在此傾訴...',
+                'btn-recommend': '尋找解藥',
+                'result-title': '為您推薦的解藥：',
+                'link-text': '前往查看書本詳情 →',
+                'loading-text': '正在為您翻閱書單，尋找合適的解藥...',
+                'footer-title': '解憂舊書店 The Book Cure',
+                'footer-address': '寶湖道街市地下F21, 新界, 大埔區, 香港',
+                'footer-hours': '營業時間：星期一至日 11:30～20:00',
+                'error-empty': '請輸入一些文字，讓我能為你尋找解答。',
+                'error-load': '無法加載書單。請確保 thebookcure_all_books_1431.xlsx 檔案已經上傳到 GitHub。',
+                'quotes': [
+                    "閱讀是一座隨身攜帶的避難所。",
+                    "每一本書，都是一道通往不同世界的門。",
+                    "有些煩惱，翻開書頁就能找到答案。",
+                    "書本無法為你解決所有問題，但能給你面對問題的勇氣。",
+                    "在文字的海洋裡，我們都能找到心靈的平靜。",
+                    "這本書裡，或許正藏著你此刻最需要的解藥。"
+                ]
+            },
+            'zh-cn': {
+                'site-title': '解忧旧书店',
+                'btn-theme': '切换深色',
+                'btn-theme-light': '切换浅色',
+                'btn-font': '放大文字',
+                'btn-font-normal': '默认文字',
+                'prompt-title': '告诉我你的烦恼，让我为你推荐一本书',
+                'placeholder': '请在此倾诉...',
+                'btn-recommend': '寻找解药',
+                'result-title': '为您推荐的解药：',
+                'link-text': '前往查看书本详情 →',
+                'loading-text': '正在为您翻阅书单，寻找合适的解药...',
+                'footer-title': '解忧旧书店 The Book Cure',
+                'footer-address': '宝湖道街市地下F21, 新界, 大埔区, 香港',
+                'footer-hours': '营业时间：星期一至日 11:30～20:00',
+                'error-empty': '请输入一些文字，让我能为你寻找解答。',
+                'error-load': '无法加载书单。请确保 thebookcure_all_books_1431.xlsx 文件已经上传到 GitHub。',
+                'quotes': [
+                    "阅读是一座随身携带的避难所。",
+                    "每一本书，都是一道通往不同世界的门。",
+                    "有些烦恼，翻开书页就能找到答案。",
+                    "书本无法为你解决所有问题，但能给你面对问题的勇气。",
+                    "在文字的海洋里，我们都能找到心灵的平静。",
+                    "这本书里，或许正藏着你此刻最需要的解药。"
+                ]
+            },
+            'en': {
+                'site-title': 'The Book Cure',
+                'btn-theme': 'Dark Mode',
+                'btn-theme-light': 'Light Mode',
+                'btn-font': 'Larger Text',
+                'btn-font-normal': 'Normal Text',
+                'prompt-title': 'Tell me your worries, let me recommend a book',
+                'placeholder': 'Pour your heart out here...',
+                'btn-recommend': 'Find My Cure',
+                'result-title': 'Your Recommended Cure:',
+                'link-text': 'View Book Details →',
+                'loading-text': 'Browsing the shelves to find your cure...',
+                'footer-title': 'The Book Cure',
+                'footer-address': 'Shop F21, G/F, Plover Cove Road Market, Tai Po, N.T., HK',
+                'footer-hours': 'Opening Hours: Mon-Sun 11:30 - 20:00',
+                'error-empty': 'Please type something so I can find a cure for you.',
+                'error-load': 'Cannot load the book list. Make sure thebookcure_all_books_1431.xlsx is uploaded to GitHub.',
+                'quotes': [
+                    "Reading is a refuge you can carry with you.",
+                    "Every book is a door to another world.",
+                    "Some worries find their answers in the pages of a book.",
+                    "Books might not solve everything, but they give you courage.",
+                    "In the ocean of words, we can all find peace of mind.",
+                    "Perhaps the cure you need right now is hidden in this book."
+                ]
+            }
+        };
+
+        // ----------------- 啟動與載入 Excel -----------------
+        window.onload = async () => {
+            try {
+                // 從同目錄動態獲取 Excel 檔案
+                const response = await fetch('thebookcure_all_books_1431.xlsx');
+                if (!response.ok) throw new Error("File not found");
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                // 讀取第一個工作表
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // 轉換成 JSON 物件陣列
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                books = jsonData.map(row => ({
+                    id: row['序號'],
+                    title: row['書名'],
+                    url: row['網址'],
+                    quote: row['名句'] // 若未來你在Excel新增了「名句」欄位，系統會自動讀取
+                })).filter(b => b.title); // 過濾掉空行
+                
+                console.log(`成功載入 ${books.length} 本書。`);
+            } catch (error) {
+                console.error("讀取 Excel 失敗:", error);
+            }
+        };
+
+        // ----------------- 介面操作函數 -----------------
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            updateUI();
+        }
+
+        function toggleFontSize() {
+            isLargeText = !isLargeText;
+            document.body.classList.toggle('text-large', isLargeText);
+            document.body.classList.toggle('text-normal', !isLargeText);
+            updateUI();
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            updateUI();
+        }
+
+        function updateUI() {
+            const t = i18n[currentLang];
+            
+            document.getElementById('site-title').innerText = t['site-title'];
+            document.getElementById('btn-theme').innerText = isDarkMode ? t['btn-theme-light'] : t['btn-theme'];
+            document.getElementById('btn-font').innerText = isLargeText ? t['btn-font-normal'] : t['btn-font'];
+            document.getElementById('prompt-title').innerText = t['prompt-title'];
+            document.getElementById('user-input').placeholder = t['placeholder'];
+            document.getElementById('btn-recommend').innerText = t['btn-recommend'];
+            document.getElementById('result-title').innerText = t['result-title'];
+            document.getElementById('book-link').innerText = t['link-text'];
+            document.getElementById('loading-text').innerText = t['loading-text'];
+            document.getElementById('footer-title').innerText = t['footer-title'];
+            document.getElementById('footer-address').innerText = t['footer-address'];
+            document.getElementById('footer-hours').innerText = t['footer-hours'];
+        }
+
+        // ----------------- 推薦邏輯 (演算法) -----------------
+        function recommendBook() {
+            const input = document.getElementById('user-input').value.trim();
+            if (!input) {
+                alert(i18n[currentLang]['error-empty']);
+                return;
+            }
+            if (books.length === 0) {
+                alert(i18n[currentLang]['error-load']);
+                return;
+            }
+
+            // 隱藏結果，顯示讀取動畫 (模擬沉浸感)
+            document.getElementById('result-section').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+
+            setTimeout(() => {
+                // 將用戶的文字輸入轉換成哈希值 (確保同樣的煩惱，會得到同樣的一本書)
+                let hash = 0;
+                for (let i = 0; i < input.length; i++) {
+                    hash = input.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                
+                // 根據計算出的結果，從書單中抽取一本書
+                const bookIndex = Math.abs(hash) % books.length;
+                const recommendedBook = books[bookIndex];
+
+                // 名句處理：如果 Excel 裡面有「名句」欄位就用 Excel 的，否則從預設金句中抽一條
+                const defaultQuotes = i18n[currentLang]['quotes'];
+                const quoteIndex = Math.abs(hash) % defaultQuotes.length;
+                const finalQuote = recommendedBook.quote ? recommendedBook.quote : defaultQuotes[quoteIndex];
+                
+                // 更新畫面資料
+                document.getElementById('book-title').innerText = recommendedBook.title;
+                document.getElementById('book-link').href = recommendedBook.url;
+                document.getElementById('book-quote').innerText = finalQuote;
+
+                // 關閉動畫，顯示結果
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('result-section').classList.remove('hidden');
+            }, 1200); 
+        }
+    </script>
+</body>
+</html>
