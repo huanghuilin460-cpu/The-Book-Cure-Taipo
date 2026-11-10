@@ -1,4 +1,4 @@
-<h1>Code by Smalldrgan on github with Gemini Pro at 20261110.</h1>
+<h2>Code by Smalldrgan on github with Gemini Pro at 20261110.</h2>
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -30,11 +30,7 @@
             --highlight-bg: #453c35;
         }
         
-        /* 
-         * 全域縮放設定：利用 rem 單位的特性
-         * 預設字體大小 16px，切換至大字體模式時改為 20px
-         * 這樣所有 Tailwind 的文字(text-xl)、間距(p-4)、寬高(w-5)都會等比例自動放大 
-         */
+        /* 全域縮放設定 */
         html {
             font-size: 16px;
             transition: font-size 0.3s ease;
@@ -69,11 +65,8 @@
             <span class="text-sm opacity-80 border-l border-current pl-3">The Book Cure</span>
         </div>
         <div class="flex flex-wrap gap-2 items-center">
-            <!-- 深淺色切換 -->
             <button onclick="toggleTheme()" class="px-3 py-1.5 bg-black/10 rounded hover:bg-black/20 transition text-sm font-medium" id="btn-theme">切換深色</button>
-            <!-- 文字大小切換 -->
             <button onclick="toggleFontSize()" class="px-3 py-1.5 bg-black/10 rounded hover:bg-black/20 transition text-sm font-medium" id="btn-font">放大文字</button>
-            <!-- 語言切換 -->
             <select onchange="changeLanguage(this.value)" class="px-2 py-1.5 bg-transparent border border-current rounded text-sm outline-none cursor-pointer">
                 <option value="zh-tw" class="text-black">繁體中文</option>
                 <option value="zh-cn" class="text-black">简体中文</option>
@@ -128,7 +121,7 @@
                 </div>
 
                 <div class="text-center">
-                    <a id="book-link" href="#" target="_blank" class="btn-custom inline-block px-6 py-3 rounded shadow hover:shadow-md transition font-medium text-lg"></a>
+                    <a id="book-link" href="#" target="_blank" class="btn-custom inline-block px-6 py-3 rounded shadow hover:shadow-md transition font-medium text-lg">前往查看詳細資訊與購書 →</a>
                 </div>
             </div>
         </div>
@@ -258,6 +251,9 @@
         };
 
         window.onload = async () => {
+            // 初始化 UI 文字，避免一開始按鈕是空白的
+            updateUI();
+            
             try {
                 const response = await fetch('thebookcure_all_books_1431.xlsx');
                 if (!response.ok) throw new Error("File not found");
@@ -288,7 +284,6 @@
             updateUI();
         }
 
-        // 修改放大文字邏輯：將 Class 加在最外層的 <html> 上
         function toggleFontSize() {
             isLargeText = !isLargeText;
             document.documentElement.classList.toggle('large-text-mode', isLargeText);
